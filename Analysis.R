@@ -63,16 +63,15 @@ nrow(merged)
 # Set the random seed, then randomly select some reports.
 set.seed(RANDOM_SEED)
 merged_subset <- dplyr::filter(merged, !is.na(Pneumonia)) # Select only reports for which Pneumonia is not NA.
-merged_subset
-keepers <- sample(1L:nrow(merged_subset), min(num_reports, nrow(merged_subset)))
+merged_subset <- dplyr::filter(merged_subset, Pneumonia == "n" | Pneumonia == "p")  # Select only reports for which Pneumonia is "p" or "n".
+merged_subset$Pneumonia <- factor(merged_subset$Pneumonia) # Drop "u" level from Pneumonia factor.
+str(merged_subset) 
+keepers <- sample(1L:nrow(merged_subset), min(num_reports, nrow(merged_subset))) # Select 1000 documents randomly
 merged_subset <- merged_subset[keepers,]
+
 # Create a vector of the reports.
 reports_subset <- merged_subset$report
 head(reports_subset)
-
-head(merged_subset)
-head(merged_subset$Pneumonia)
-str(merged_subset)
 
 ######### Apply tm package ####################################################
 # Parameters for the analysis.
@@ -196,8 +195,6 @@ grammed_tall_merged <- dplyr::inner_join(
   by = "DOCUMENT_ID"
 )
 grammed_tall_merged
-str(merged_subset)
-str(grammed_tall_merged)
 
 # Next, select how many of the most common grams should be used in plotting. I
 # recommend keeping this relatively small.
@@ -348,33 +345,63 @@ test_results <- dplyr::select(
   -logCPM, -LR
 )
 
-################ KNN ###############
-# Create dtm with top 50 grams.
-sorted <- dplyr::arrange(doc_gram_presence, dplyr::desc(present_percent))
-top_50_grams <- head(sorted, 50)$gram 
-dtm <- grammed_wide[, top_50_grams]
+
+
+
+##################KNN###################
+# Select words that appear at least 10 times.
+grammed_popular <- grammed_wide[,colSums(as.matrix(grammed_wide)) > 10]
+
+# Merge with Pneumonia data.
 pneumonia_data <- merged_subset$Pneumonia
-dtm_with_pneumonia <- dplyr::mutate(dtm, Pneumonia = pneumonia_data)
-dtm_with_pneumonia <- dplyr::filter(dtm_with_pneumonia, Pneumonia == "n" | Pneumonia == "p") # Select only reports for which Pneumonia is "p" or "n".
+grammed_popular <- dplyr::mutate(grammed_popular, Pneumonia = pneumonia_data)
+
+# Split by Pneumonia == "p" and Pneumonia == "n".
+grammed_p <- dplyr::filter(grammed_popular, Pneumonia == "p")
+grammed_n <- dplyr::filter(grammed_popular, Pneumonia == "n")
+
+nrow(grammed_p)
+nrow(grammed_n)
+
+# Remove columns called "DOCUMENT_ID" and "Pnemonia" and sum up the columns.
+grammed_p_freq <- colSums(as.matrix(grammed_p[,c(-1,-ncol(grammed_p))]))
+grammed_n_freq <- colSums(as.matrix(grammed_n[,c(-1,-ncol(grammed_n))]))
+
+# Identify terms that are frequent in “p” but not “n”, and vice versa. Then, sort them in descending order.
+grammed_freq_sum <- grammed_p_freq + grammed_n_freq
+grammed_freq_diff <- abs(grammed_p_freq - grammed_n_freq)
+grammed_freq_percent <- grammed_freq_diff/grammed_freq_sum
+freq_percent_sorted <- sort(grammed_freq_percent, decreasing = TRUE)
+
+head(grammed_freq_sum)
+head(grammed_freq_diff)
+head(grammed_freq_percent)
+head(freq_percent_sorted)
+
+# (Used to check differences)
+grammed_p_freq["infecti infiltr"]
+grammed_n_freq["infecti infiltr"]
+
+# Select words
+selected_words <- names(freq_percent_sorted[freq_percent_sorted > 0.8])
+dtm <- grammed_popular[,selected_words]
 
 # normalization - scale numerical features from 0 to 1 (not including target - species)
 normalize <- function (x) {
   return ( (x - min(x)) / (max(x) - min(x)))
 }
-dtm_n <- as.data.frame(lapply(dtm_with_pneumonia[,-ncol(dtm_with_pneumonia)], normalize))
-head(dtm_n)
+dtm_normalized <- as.data.frame(lapply(dtm, normalize))
 
 # create training data set (80%) & test data set (20%)
 set.seed(10)
-num_rows <- nrow(dtm_with_pneumonia)
+num_rows <- nrow(dtm)
 num_train <- round(num_rows * 0.8)
 num_test <- num_rows - num_train
 index <- sample(1:num_rows, num_train, replace=F)
-dtm_train <- dtm_n[index, ]
-dtm_test <- dtm_n[-index, ]
-library("dplyr")
-dtm_train_label <- pull(dtm_with_pneumonia[index, ncol(dtm_with_pneumonia)], Pneumonia)
-dtm_test_label <- pull(dtm_with_pneumonia[-index, ncol(dtm_with_pneumonia)], Pneumonia)
+dtm_train <- dtm_normalized[index, ]
+dtm_test <- dtm_normalized[-index, ]
+dtm_train_label <- pneumonia_data[index]
+dtm_test_label <- pneumonia_data[-index]
 
 table(dtm_train_label)
 table(dtm_test_label)
@@ -382,12 +409,24 @@ table(dtm_test_label)
 # apply knn algorithm
 # Predictions
 library(class)
-prediction <- knn(train=dtm_train, test=dtm_test, cl=dtm_train_label, k = 10,prob=TRUE) # cl = class & k stands for how many nearest neighbor you want
+prediction <- knn(train=dtm_train, test=dtm_test, cl=dtm_train_label, k = 5,prob=TRUE) # cl = class & k stands for how many nearest neighbor you want
 prediction
 # Test result (m1=prediction & iris_test_target=actual value )
 table(dtm_test_label, prediction)
+
 
 # create confusion matrix
 library(gmodels)
 CrossTable(x = dtm_test_label, y = prediction,prop.chisq=FALSE) 
 
+
+# Calculate the precision and recall
+TP <- table(dtm_test_label, prediction)[1,1]
+FP <- table(dtm_test_label, prediction)[1,2]
+FN <- table(dtm_test_label, prediction)[2,1]
+TN <- table(dtm_test_label, prediction)[2,2]
+
+Precision <- TP/(TP+FP)
+Recall <- TP/(TP+FN)
+Precision
+Recall
