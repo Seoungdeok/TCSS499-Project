@@ -421,12 +421,107 @@ CrossTable(x = dtm_test_label, y = prediction,prop.chisq=FALSE)
 
 
 # Calculate the precision and recall
-TP <- table(dtm_test_label, prediction)[1,1]
+TP <- table(dtm_test_label, prediction)[2,2]
 FP <- table(dtm_test_label, prediction)[1,2]
 FN <- table(dtm_test_label, prediction)[2,1]
-TN <- table(dtm_test_label, prediction)[2,2]
+TN <- table(dtm_test_label, prediction)[1,1]
 
-Precision <- TP/(TP+FP)
 Recall <- TP/(TP+FN)
-Precision
+Precision <- TP/(TP+FP)
 Recall
+Precision
+
+
+
+#################
+# Returns one row tibble. Columns of this going to be K, Threshold, TP, TN, FP, FN, Sensitivity, Specificity.
+knn_fxn <- function(K, Threshold){
+  # Code for running the KNN model.
+  # Select words that appear at least 10 times.
+  grammed_popular <- grammed_wide[,colSums(as.matrix(grammed_wide)) > 10]
+  
+  # Merge with Pneumonia data.
+  pneumonia_data <- merged_subset$Pneumonia
+  grammed_popular <- dplyr::mutate(grammed_popular, Pneumonia = pneumonia_data)
+  
+  # Split by Pneumonia == "p" and Pneumonia == "n".
+  grammed_p <- dplyr::filter(grammed_popular, Pneumonia == "p")
+  grammed_n <- dplyr::filter(grammed_popular, Pneumonia == "n")
+  
+  # Remove columns called "DOCUMENT_ID" and "Pnemonia" and sum up the columns.
+  grammed_p_freq <- colSums(as.matrix(grammed_p[,c(-1,-ncol(grammed_p))]))
+  grammed_n_freq <- colSums(as.matrix(grammed_n[,c(-1,-ncol(grammed_n))]))
+  
+  # Identify terms that are frequent in “p” but not “n”, and vice versa. Then, sort them in descending order.
+  grammed_freq_sum <- grammed_p_freq + grammed_n_freq
+  grammed_freq_diff <- abs(grammed_p_freq - grammed_n_freq)
+  grammed_freq_percent <- grammed_freq_diff/grammed_freq_sum
+  freq_percent_sorted <- sort(grammed_freq_percent, decreasing = TRUE)
+  
+  # Select words
+  selected_words <- names(freq_percent_sorted[freq_percent_sorted > Threshold])
+  dtm <- grammed_popular[,selected_words]
+  
+  # normalization - scale numerical features from 0 to 1 (not including target - species)
+  normalize <- function (x) {
+    return ( (x - min(x)) / (max(x) - min(x)))
+  }
+  dtm_normalized <- as.data.frame(lapply(dtm, normalize))
+  
+  # create training data set (80%) & test data set (20%)
+  set.seed(10)
+  num_rows <- nrow(dtm)
+  num_train <- round(num_rows * 0.8)
+  num_test <- num_rows - num_train
+  index <- sample(1:num_rows, num_train, replace=F)
+  dtm_train <- dtm_normalized[index, ]
+  dtm_test <- dtm_normalized[-index, ]
+  dtm_train_label <- pneumonia_data[index]
+  dtm_test_label <- pneumonia_data[-index]
+  
+  table(dtm_train_label)
+  table(dtm_test_label)
+  
+  # apply knn algorithm
+  prediction <- class::knn(train=dtm_train, test=dtm_test, cl=dtm_train_label, k = K,prob=TRUE) # cl = class & k stands for how many nearest neighbor you want
+  
+  
+  # Calculate the Sensitivity(precision) and Specificity(recall)
+  TP <- table(dtm_test_label, prediction)[2,2]
+  TN <- table(dtm_test_label, prediction)[1,1]
+  FP <- table(dtm_test_label, prediction)[1,2]
+  FN <- table(dtm_test_label, prediction)[2,1]
+  
+  Sensitivity <- TP/(TP+FN)
+  Specificity  <- TP/(TP+FP)
+  
+  # Return the results as a tibble.
+  tibble::tibble(
+    K = K,
+    Threshold = Threshold,
+    TP = TP,
+    TN = TN,
+    FP = FP,
+    FN = FN,
+    Sensitivity = Sensitivity,
+    Specificity = Specificity
+  )
+}
+
+# All the combinations of parameters that are possible.
+param_tibble <- expand.grid(K = 5:20, Threshold = seq(0.5,0.95,0.05))
+
+# Runs each of these combinations.
+out <- lapply(
+  1L:nrow(param_tibble),
+  function(i){
+    result <- knn_fxn(param_tibble$K[i], param_tibble$Threshold[i])
+    return(result)
+  }
+)
+
+# lapply will return the list. bind_rows stacks the rows(list) on top of each other.
+out <- dplyr::bind_rows(out)
+
+# Export it to excel.
+writexl::write_xlsx(out, "Results.xlsx")
