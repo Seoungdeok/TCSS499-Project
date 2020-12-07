@@ -349,91 +349,6 @@ test_results <- dplyr::select(
 
 
 ##################KNN###################
-# Select words that appear at least 10 times.
-grammed_popular <- grammed_wide[,colSums(as.matrix(grammed_wide)) > 10]
-
-# Merge with Pneumonia data.
-pneumonia_data <- merged_subset$Pneumonia
-grammed_popular <- dplyr::mutate(grammed_popular, Pneumonia = pneumonia_data)
-
-# Split by Pneumonia == "p" and Pneumonia == "n".
-grammed_p <- dplyr::filter(grammed_popular, Pneumonia == "p")
-grammed_n <- dplyr::filter(grammed_popular, Pneumonia == "n")
-
-nrow(grammed_p)
-nrow(grammed_n)
-
-# Remove columns called "DOCUMENT_ID" and "Pnemonia" and sum up the columns.
-grammed_p_freq <- colSums(as.matrix(grammed_p[,c(-1,-ncol(grammed_p))]))
-grammed_n_freq <- colSums(as.matrix(grammed_n[,c(-1,-ncol(grammed_n))]))
-
-# Identify terms that are frequent in “p” but not “n”, and vice versa. Then, sort them in descending order.
-grammed_freq_sum <- grammed_p_freq + grammed_n_freq
-grammed_freq_diff <- abs(grammed_p_freq - grammed_n_freq)
-grammed_freq_percent <- grammed_freq_diff/grammed_freq_sum
-freq_percent_sorted <- sort(grammed_freq_percent, decreasing = TRUE)
-
-head(grammed_freq_sum)
-head(grammed_freq_diff)
-head(grammed_freq_percent)
-head(freq_percent_sorted)
-
-# (Used to check differences)
-grammed_p_freq["infecti infiltr"]
-grammed_n_freq["infecti infiltr"]
-
-# Select words
-selected_words <- names(freq_percent_sorted[freq_percent_sorted > 0.8])
-dtm <- grammed_popular[,selected_words]
-
-# normalization - scale numerical features from 0 to 1 (not including target - species)
-normalize <- function (x) {
-  return ( (x - min(x)) / (max(x) - min(x)))
-}
-dtm_normalized <- as.data.frame(lapply(dtm, normalize))
-
-# create training data set (80%) & test data set (20%)
-set.seed(10)
-num_rows <- nrow(dtm)
-num_train <- round(num_rows * 0.8)
-num_test <- num_rows - num_train
-index <- sample(1:num_rows, num_train, replace=F)
-dtm_train <- dtm_normalized[index, ]
-dtm_test <- dtm_normalized[-index, ]
-dtm_train_label <- pneumonia_data[index]
-dtm_test_label <- pneumonia_data[-index]
-
-table(dtm_train_label)
-table(dtm_test_label)
-
-# apply knn algorithm
-# Predictions
-library(class)
-prediction <- knn(train=dtm_train, test=dtm_test, cl=dtm_train_label, k = 5,prob=TRUE) # cl = class & k stands for how many nearest neighbor you want
-prediction
-# Test result (m1=prediction & iris_test_target=actual value )
-table(dtm_test_label, prediction)
-
-
-# create confusion matrix
-library(gmodels)
-CrossTable(x = dtm_test_label, y = prediction,prop.chisq=FALSE) 
-
-
-# Calculate the precision and recall
-TP <- table(dtm_test_label, prediction)[2,2]
-FP <- table(dtm_test_label, prediction)[1,2]
-FN <- table(dtm_test_label, prediction)[2,1]
-TN <- table(dtm_test_label, prediction)[1,1]
-
-Recall <- TP/(TP+FN)
-Precision <- TP/(TP+FP)
-Recall
-Precision
-
-
-
-#################
 # Returns one row tibble. Columns of this going to be K, Threshold, TP, TN, FP, FN, Sensitivity, Specificity.
 knn_fxn <- function(K, Threshold){
   # Code for running the KNN model.
@@ -485,15 +400,23 @@ knn_fxn <- function(K, Threshold){
   # apply knn algorithm
   prediction <- class::knn(train=dtm_train, test=dtm_test, cl=dtm_train_label, k = K,prob=TRUE) # cl = class & k stands for how many nearest neighbor you want
   
-  
-  # Calculate the Sensitivity(precision) and Specificity(recall)
+  # TP, TN, FP, FN
   TP <- table(dtm_test_label, prediction)[2,2]
   TN <- table(dtm_test_label, prediction)[1,1]
   FP <- table(dtm_test_label, prediction)[1,2]
   FN <- table(dtm_test_label, prediction)[2,1]
-  
+
+  # Sensitivity(precision) and Specificity(recall)
   Sensitivity <- TP/(TP+FN)
-  Specificity  <- TP/(TP+FP)
+  Specificity  <- TN/(TN+FP)
+  
+  # F1-score
+  F1_score <- (TP)/(TP + 0.5 * (FP + FN))
+  
+  # MCC
+  MCC_numerator <- TP * TN - FP * FN
+  MCC_denominator <- sqrt((TP+FP)*(TP+FN)*(TN+FP)*(TN+FN))
+  MCC <- MCC_numerator/MCC_denominator
   
   # Return the results as a tibble.
   tibble::tibble(
@@ -504,7 +427,9 @@ knn_fxn <- function(K, Threshold){
     FP = FP,
     FN = FN,
     Sensitivity = Sensitivity,
-    Specificity = Specificity
+    Specificity = Specificity,
+    F1_score = F1_score,
+    MCC = MCC
   )
 }
 
@@ -525,3 +450,11 @@ out <- dplyr::bind_rows(out)
 
 # Export it to excel.
 writexl::write_xlsx(out, "Results.xlsx")
+
+# Graph
+ggplot(out, aes(x=Specificity, y=Sensitivity, color = Threshold)) + 
+  geom_point() +
+  facet_wrap(~ K) + 
+  theme(axis.text.x = element_text(angle = 90))
+
+             
