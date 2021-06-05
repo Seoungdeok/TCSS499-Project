@@ -2,6 +2,8 @@
 
 Most part of the programs are written as functional programming.
 
+In Analysis.R:
+
 * Lines from 6 ~ 33: load custom functions, key packages, and parameters.
 * Lines from 36 ~ 505: helper functions to run the program
 * Lines from 506 ~ 521: Run the program
