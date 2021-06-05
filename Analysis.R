@@ -18,6 +18,8 @@ library(pROC)
 library(gbm)
 library(dplyr)
 library(xlsx)
+library(Hmisc)
+library(reshape2)
 
 # Parameters for the analysis.
 stem_words <- TRUE # Should words be stemmed or not.
@@ -29,9 +31,6 @@ words.to.be.rm <- c(# Comma separated list of words or phrases that should be re
 sort(words.to.be.rm)
 words.to.be.rm <- removeWords(words.to.be.rm, c("no", "not", "nor", "neither"))
 gram_size <- 1:2 # Gram size. You can set this to a single integer or a range, e.g. 1:4
-
-
-
 
 
 ######### Load Data #########
@@ -149,7 +148,6 @@ createWideDTM <- function(corpus) {
     dplyr::arrange(DOCUMENT_ID) # Sort by DOCUMENT_ID to match the order in merged_subset.  
 }
 
-
 # Apply feature selection to DTM
 featureSelection <- function(data_subset, dtm_wide, threshold) {
   # Select words that appear at least 10 times.
@@ -176,10 +174,6 @@ featureSelection <- function(data_subset, dtm_wide, threshold) {
   selected_grams <- names(freq_percent_sorted[freq_percent_sorted > threshold])
   return(selected_grams)
 }
-
-
-
-
 
 ######### Machine Learning #########
 # Calculate the brier score
@@ -509,44 +503,10 @@ collectData <- function(data_subset, dtm, RANDOM_SEED, num_reports) {
   
 }
 
-
+######################### Run the program #######################
 # All the combinations of parameters that are possible.
 param_tibble <- expand.grid(RANDOM_SEED = c(123456789, 987654321, 192837465, 918273645, 111111111, 222222222), 
                             num_reports = c(500, 1000, 2000, 3000))
-#out <- lapply(
-#  1L:nrow(param_tibble),
-#  function(i){
-    data_subset <- loadDataSubset(123456789, 1000)
-    dtm_wide <-  createCorpus(data_subset) %>%
-      createWideDTM()
-    selected_grams <- featureSelection(data_subset, dtm_wide, 0.5)
-    remove_terms <- c("ap view chest",
-                      "ap later view",
-                      "lung volum low",
-                      "opac may reflect",
-                      "opac may repres",
-                      "overt pulmonari edema",
-                      "upright ap view",
-                      "opac lung base",
-                      "correct clinic set",
-                      "left basilar opac",
-                      "consolid concern pneumonia",
-                      "portable view chest",
-                      "compar prior studi")
-    selected_grams <- selected_grams [! selected_grams %in% remove_terms]
-    dtm <- dtm_wide[,selected_grams]
-    result <- adaboost_fxn(data_subset, dtm, 123456789)
-    
-    #KNN
-    roc(result$Test_Label, result$predicted_result_prob, legacy.axes=TRUE, percent=TRUE,
-        xlab="False Positive Percentage", ylab="True Positive Percentage", col="#4daf4a", lwd=4, print.auc=TRUE)
-    
-    result <- collectData(data_subset, dtm, param_tibble$RANDOM_SEED[i], param_tibble$num_reports[i])
-    return(result)
-  }
-#)
-
-# Run all the combinations
 out <- lapply(
   1L:nrow(param_tibble),
   function(i){
@@ -619,7 +579,7 @@ df_summarized_contingency_table <- df_summarized_contingency_table %>%
     Mean.Specificity = "mean(Specificity)"
   )
 
-xlsx::write.xlsx(df_summarized_contingency_table, file="Contingency_Table.xlsx", row.names=FALSE) 
+xlsx::write.xlsx(df_summarized_contingency_table, file="Contingency_Table.xlsx", row.names=FALSE)
 
 #### Brier Scores Analysis #####
 brier_score_analysis <- function (df_brier_scores, num_reports) {
@@ -644,7 +604,7 @@ df_summarized_brier_scores <- df_summarized_brier_scores %>%
 df_summarized_brier_scores_final <- df_summarized_brier_scores[,-1]
 rownames(df_summarized_brier_scores_final) <- df_summarized_brier_scores[,1]
 
-xlsx::write.xlsx(df_summarized_brier_scores, file="Brier_Scores.xlsx", row.names=FALSE) 
+xlsx::write.xlsx(df_summarized_brier_scores, file="Brier_Scores.xlsx", row.names=FALSE)
 
 #### AUC Analysis #####
 auc_analysis <- function (df_auc, num_reports) {
@@ -673,10 +633,8 @@ rownames(df_summarized_auc_final) <- df_summarized_auc[,1]
 xlsx::write.xlsx(df_summarized_auc, file="AUC.xlsx", row.names=FALSE) 
 
 
-#### Graphs ####
-library(reshape2)
-ggplot(df_summarized_contingency_table, aes(x=Num_Reports, y=Mean.Sensitivity)) + geom_bar(stat="identity") + facet_grid(.~Model)
-
+########### Graphs #########
+#### Graph 1
 # Brier Scores
 df_summarized_brier_scores_final$num_reports  <- row.names(df_summarized_brier_scores_final)
 df_summarized_brier_scores_final$num_reports <- factor(df_summarized_brier_scores_final$num_reports,levels = c("500", "1000", "2000", "3000"))
@@ -690,21 +648,12 @@ df_summarized_auc_final.molten <- melt(df_summarized_auc_final, value.name="AUC"
 ggplot(df_summarized_auc_final.molten, aes(x=Model, y=AUC, fill=num_reports)) + geom_bar(stat="identity", position="dodge") + coord_flip()
 
 
-
-d=data.frame(drink=c("coffee","tea","water"), mean=c(3,6,2), lower=c(2.6,5.6,1.8), upper=c(3.5,6.3,2.8))
-ggplot() + 
-  geom_errorbarh(data=d, mapping=aes(y=drink, x=upper, xmin=upper, xmax=lower), height=0.2, size=1, color="blue") + 
-  geom_point(data=d, mapping=aes(y=drink, x=mean), size=4, shape=21, fill="white") 
-
-
-df_auc
+#### Graph 2
 df_auc_final <- df_auc[1:24,-1]
 df_auc_final <- df_auc_final[,-1]
-#rownames(df_auc_final) <- df_auc[1:24,1]
 df_auc_final$num_reports <- df_auc[1:24,1]
 df_auc_final$num_reports <- factor(df_auc_final$num_reports,levels = c("500", "1000", "2000", "3000"))
 df_auc_final.molten <- melt(df_auc_final, id="num_reports",value.name="AUC", variable.name="Model", na.rm=TRUE)
-library(Hmisc)
 ggplot(df_auc_final.molten, aes(x=Model, y=AUC, fill=num_reports)) + facet_wrap(~ num_reports) +
   stat_summary(geom="bar", fun = "mean") + stat_summary(geom = "errorbar", fun.data = "mean_cl_normal") + coord_flip()
 
@@ -712,13 +661,21 @@ ggplot(df_auc_final.molten, aes(x=Model, y=AUC, fill=num_reports)) + facet_wrap(
 df_brier_scores
 df_brier_scores_final <- df_brier_scores[1:24,-1]
 df_brier_scores_final <- df_brier_scores_final[,-1]
-#rownames(df_auc_final) <- df_auc[1:24,1]
 df_brier_scores_final$num_reports <- df_brier_scores[1:24,1]
 df_brier_scores_final$num_reports <- factor(df_brier_scores_final$num_reports,levels = c("500", "1000", "2000", "3000"))
 df_brier_scores_final.molten <- melt(df_brier_scores_final, id="num_reports",value.name="Brier_Score", variable.name="Model", na.rm=TRUE)
-library(Hmisc)
 ggplot(df_brier_scores_final.molten, aes(x=Model, y=Brier_Score, fill=num_reports)) + facet_wrap(~ num_reports) +
   stat_summary(geom="bar", fun = "mean") + stat_summary(geom = "errorbar", fun.data = "mean_cl_normal") + coord_flip()
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -819,4 +776,3 @@ adaboost_pr <- pr.curve(scores.class0=adaboost_scores[adaboost_scores$Labels=="1
                         scores.class1=adaboost_scores[adaboost_scores$Labels=="0",]$Predictions,
                         curve=T)
 plot(adaboost_pr)
-

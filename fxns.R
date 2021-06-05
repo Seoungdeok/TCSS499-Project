@@ -96,4 +96,3 @@ read_report <- function(data_folder, path){
   full_path <- file.path(data_folder, path)
   readr::read_file(full_path)
 }
-
