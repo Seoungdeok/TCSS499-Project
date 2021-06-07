@@ -2,6 +2,8 @@
 
 Most part of the programs are written as functional programming.
 
+
+
 In Analysis.R:
 
 * Lines from 6 ~ 33: load custom functions, key packages, and parameters.
@@ -35,3 +37,8 @@ Here are the list of functions
   * contingency_table_analysis()
   * brier_score_analysis()
   * auc_analysis()
+
+
+Key Features: 
+* 1-2 gram model
+* Threshold value for feature selection: 0.5
