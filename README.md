@@ -42,3 +42,40 @@ Here are the list of functions
 Key Features: 
 * 1-2 gram model
 * Threshold value for feature selection: 0.5
+
+Images:
+* Wordcloud_Pneumonia
+  * Shows the most frequent terms in negative and postivie sides.
+* Heatmap_Pneumonia
+  * Heatmap that depicts how many times each of the top grams appears in each report.
+* Barchart_Pneumonia
+  * Barchar that shows the percent of reports that contain each gram.
+* Histogram_GramCounts
+  * Histogram that depicts the distribution of gram usage across reports.
+* Brier_Scores_Graph
+  * Graph that shows the result of brier scores on different number of reports. The lower the brier scores, the better the model is at predicting.
+    The graph is horizontal bar graph, where the x-axis shows the brier scores, and y-axis shows the 5 different models. 
+* AUC_Graph
+  * Graph that shows the result of AUC on different number of reports. The higher the AUC, the better the model is at predicting. 
+    The graph is horizontal bar graph, where the x-axis shows the AUC, and y-axis shows the 5 different models. 
+
+
+_______________________________________________________________________________________________________________________________________
+Results in Google Folder
+
+Excel:
+* Results
+  * Results shows the result of each run. Here are the list of information that the file contains:
+    * Number of reports
+    * Randome Seed
+    * Patient ID
+    * Report ID
+    * Path
+    * Result of each models (1 indicates that the model classified the report correctly, 0 indicates that the model classified the report incorrectly)
+    * TN/TF/FP/FN for each models
+* Contingency_Table
+  * It contains the average TN/TF/FP/FN rates for each run. It also contains average sensitivity and specificity values.
+* Brier_scores
+  * It contains the results of brier scores on different number of reports for each model.
+* AUC
+  * It contains the results of AUC on different number of reports for each model.
