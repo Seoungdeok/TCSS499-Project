@@ -43,6 +43,9 @@ Key Features:
 * 1-2 gram model
 * Threshold value for feature selection: 0.5
 
+_______________________________________________________________________________________________________________________________________
+Results in Google Folder
+
 Images:
 * Wordcloud_Pneumonia
   * Shows the most frequent terms in negative and postivie sides.
@@ -58,10 +61,6 @@ Images:
 * AUC_Graph
   * Graph that shows the result of AUC on different number of reports. The higher the AUC, the better the model is at predicting. 
     The graph is horizontal bar graph, where the x-axis shows the AUC, and y-axis shows the 5 different models. 
-
-
-_______________________________________________________________________________________________________________________________________
-Results in Google Folder
 
 Excel:
 * Results
