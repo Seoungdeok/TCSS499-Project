@@ -47,23 +47,23 @@ ________________________________________________________________________________
 Results in Google Folder
 
 Images:
-* Wordcloud_Pneumonia
+* Wordcloud_Pneumonia.tiff
   * Shows the most frequent terms in negative and postivie sides.
-* Heatmap_Pneumonia
+* Heatmap_Pneumonia.tiff
   * Heatmap that depicts how many times each of the top grams appears in each report.
-* Barchart_Pneumonia
+* Barchart_Pneumonia.tiff
   * Barchar that shows the percent of reports that contain each gram.
-* Histogram_GramCounts
+* Histogram_GramCounts.tiff
   * Histogram that depicts the distribution of gram usage across reports.
-* Brier_Scores_Graph
+* Brier_Scores_Graph.png
   * Graph that shows the result of brier scores on different number of reports. The lower the brier scores, the better the model is at predicting.
     The graph is horizontal bar graph, where the x-axis shows the brier scores, and y-axis shows the 5 different models. 
-* AUC_Graph
+* AUC_Graph.png
   * Graph that shows the result of AUC on different number of reports. The higher the AUC, the better the model is at predicting. 
     The graph is horizontal bar graph, where the x-axis shows the AUC, and y-axis shows the 5 different models. 
 
 Excel:
-* Results
+* Results.xlsx
   * Results shows the result of each run. Here are the list of information that the file contains:
     * Number of reports
     * Randome Seed
@@ -72,9 +72,9 @@ Excel:
     * Path
     * Result of each models (1 indicates that the model classified the report correctly, 0 indicates that the model classified the report incorrectly)
     * TN/TF/FP/FN for each models
-* Contingency_Table
+* Contingency_Table.xlsx
   * It contains the average TN/TF/FP/FN rates for each run. It also contains average sensitivity and specificity values.
-* Brier_scores
+* Brier_scores.xlsx
   * It contains the results of brier scores on different number of reports for each model.
-* AUC
+* AUC.xlsx
   * It contains the results of AUC on different number of reports for each model.
