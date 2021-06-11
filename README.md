@@ -61,7 +61,8 @@ Images:
 * AUC_Graph.png
   * Graph that shows the result of AUC on different number of reports. The higher the AUC, the better the model is at predicting. 
     The graph is horizontal bar graph, where the x-axis shows the AUC, and y-axis shows the 5 different models. 
-
+* ROC_Curve.png
+  *  A representative ROC curves comparing different models. This is the result of running the algorithm using 2000 reports.
 Excel:
 * Results.xlsx
   * Results shows the result of each run. Here are the list of information that the file contains:
