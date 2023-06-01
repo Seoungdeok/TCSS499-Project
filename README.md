@@ -1,4 +1,4 @@
-# TCSS499 - Application of Natural Language Processing and Machine Learning to Radiology Reports
+# Application of Natural Language Processing and Machine Learning to Radiology Reports
 
 Most part of the programs are written as functional programming.
 
